@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منظومة إدارة خطب الجمعة</title>
+    <!-- استدعاء خط كايرو -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- مكتبات PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://unpkg.com/@pdf-lib/fontkit/dist/fontkit.umd.js"></script>
+
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #059669 0%, #047857 100%);
+            --secondary-gradient: linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%);
+            --accent-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            --danger-gradient: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: var(--text-main);
+            line-height: 1.6;
+            padding-bottom: 50px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* الترويسة الرئيسية */
+        .app-header {
+            text-align: center;
+            padding: 40px 20px;
+            background: var(--primary-gradient);
+            border-radius: 24px;
+            color: white;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px rgba(4, 120, 87, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .app-header::before {
+            content: "";
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+            animation: rotate 20s linear infinite;
+        }
+
+        @keyframes rotate { 100% { transform: rotate(360deg); } }
+
+        .app-header h1 { font-size: 2.5rem; font-weight: 800; position: relative; }
+        .app-header p { font-size: 1.1rem; opacity: 0.9; position: relative; }
+
+        /* شبكة البطاقات (Layout) */
+        .grid-layout {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        /* تصميم البطاقات الموحد */
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            border-top: 5px solid;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+        }
+
+        .settings-card { border-image: var(--secondary-gradient) 1; border-top-width: 5px; border-style: solid; border-bottom: none; border-left: none; border-right: none;}
+        .add-card { border-image: var(--primary-gradient) 1; border-top-width: 5px; border-style: solid; border-bottom: none; border-left: none; border-right: none;}
+        .reports-card { border-image: var(--accent-gradient) 1; border-top-width: 5px; border-style: solid; border-bottom: none; border-left: none; border-right: none;}
+
+        .card h2 {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: var(--text-main);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2 span.icon {
+            font-size: 1.8rem;
+        }
+
+        /* الحقول والنماذج */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            background: #f9fafb;
+            transition: all 0.3s ease;
+            color: var(--text-main);
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #059669;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.1);
+        }
+
+        .date-inputs {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 10px;
+        }
+
+        /* الأزرار */
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            filter: brightness(1.1);
+            transform: scale(1.02);
+        }
+
+        button:active { transform: scale(0.98); }
+
+        .btn-settings { background: var(--secondary-gradient); }
+        .btn-add { background: var(--primary-gradient); }
+        .btn-report-month { background: var(--accent-gradient); }
+        .btn-report-year { background: var(--text-main); margin-top: 15px; }
+
+        /* قسم الأرشيف الانفوجرافيك */
+        .archive-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-badge {
+            background: var(--primary-gradient);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+
+        .khutbah-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .khutbah-item {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 15px;
+            position: relative;
+            border-right: 5px solid #059669;
+            transition: all 0.3s ease;
+        }
+
+        .khutbah-item:hover {
+            background: #f8fafc;
+            border-right-width: 8px;
+        }
+
+        .k-title { font-weight: 800; font-size: 1.1rem; color: #1f2937; margin-bottom: 5px; }
+        .k-date { font-size: 0.9rem; color: #6b7280; margin-bottom: 15px; }
+        
+        .btn-delete {
+            background: var(--danger-gradient);
+            padding: 8px;
+            font-size: 0.9rem;
+            width: auto;
+            position: absolute;
+            left: 15px;
+            bottom: 15px;
+            margin: 0;
+            border-radius: 8px;
+        }
+
+        /* رسائل التنبيه */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #1f2937;
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+            transform: translateX(200%);
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            z-index: 1000;
+        }
+        .toast.show { transform: translateX(0); }
+
+        hr { border: 0; height: 1px; background: #e5e7eb; margin: 20px 0; }
+
+        @media (max-width: 768px) {
+            .app-header h1 { font-size: 2rem; }
+        }
+
+        /* شاشة تسجيل الدخول / إنشاء حساب */
+        #authScreen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        #authScreen .card {
+            max-width: 420px;
+            width: 100%;
+            border-top: 5px solid;
+            border-image: var(--primary-gradient) 1;
+        }
+
+        #authScreen h1 {
+            text-align: center;
+            font-size: 1.6rem;
+            margin-bottom: 5px;
+            color: var(--text-main);
+        }
+
+        #authScreen p.sub {
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+        }
+
+        .auth-error {
+            background: #fee2e2;
+            color: #b91c1c;
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            display: none;
+        }
+
+        .auth-error.show { display: block; }
+
+        .auth-switch {
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .auth-switch a { color: #059669; font-weight: 700; cursor: pointer; text-decoration: none; }
+
+        /* شريط حالة المستخدم أعلى التطبيق */
+        .user-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 10px 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .user-bar .email { font-weight: 700; color: var(--text-main); font-size: 0.95rem; }
+        .user-bar .sync-status { font-size: 0.8rem; color: var(--text-muted); }
+        .user-bar button { width: auto; padding: 8px 16px; font-size: 0.9rem; margin: 0; background: var(--danger-gradient); }
+
+        .backup-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .backup-actions button { font-size: 0.85rem; padding: 10px; background: var(--text-main); }
+        .backup-actions label { font-size: 0.85rem; padding: 10px; background: var(--text-main); color: white; border-radius: 12px; text-align: center; cursor: pointer; width: 100%; display:flex; align-items:center; justify-content:center; gap:6px; font-weight:700; }
+
+        [hidden] { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- شاشة تسجيل الدخول / إنشاء حساب -->
+    <div id="authScreen">
+        <div class="card">
+            <h1 id="authTitle">تسجيل الدخول</h1>
+            <p class="sub">بياناتك محفوظة بأمان على حسابك، ويمكنك الدخول من أي جهاز</p>
+            <div id="authError" class="auth-error"></div>
+            <div class="form-group"><input type="email" id="authEmail" placeholder="البريد الإلكتروني" autocomplete="email"></div>
+            <div class="form-group"><input type="password" id="authPassword" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="current-password"></div>
+            <button class="btn-add" id="authSubmitBtn" onclick="handleAuthSubmit()">تسجيل الدخول</button>
+            <p class="auth-switch" id="authSwitchText">ليس لديك حساب؟ <a onclick="toggleAuthMode()">إنشاء حساب جديد</a></p>
+        </div>
+    </div>
+
+    <div class="container" id="appContainer" hidden>
+        <!-- شريط حالة المستخدم -->
+        <div class="user-bar">
+            <span class="email" id="userEmailLabel"></span>
+            <span class="sync-status" id="syncStatus">✅ متزامن مع السحابة</span>
+            <button onclick="handleLogout()">🚪 تسجيل الخروج</button>
+        </div>
+
+        <!-- الترويسة -->
+        <header class="app-header">
+            <h1>منظومة إعداد تقارير الخطب</h1>
+            <p>أرشفة احترافية، تنظيم دقيق، وتقارير جاهزة للطباعة</p>
+        </header>
+
+        <div class="grid-layout">
+            <!-- 1. بطاقة الإعدادات -->
+            <div class="card settings-card">
+                <h2><span class="icon">⚙️</span> بيانات الخطيب</h2>
+                <div class="form-group"><input type="text" id="imamName" placeholder="الاسم الرباعي (مثال: فيصل بن محمد ...)"></div>
+                <div class="form-group"><input type="number" id="nationalId" placeholder="رقم الهوية الوطنية"></div>
+                <div class="form-group"><input type="tel" id="phone" placeholder="رقم الجوال"></div>
+                <div class="form-group"><input type="text" id="mosque" placeholder="اسم الجامع"></div>
+                <div class="form-group"><input type="text" id="location" placeholder="المدينة / الحي (مثال: المدينة المنورة)"></div>
+                <button class="btn-settings" onclick="saveSettings()">💾 حفظ البيانات الأساسية</button>
+                <hr>
+                <div class="backup-actions">
+                    <button onclick="exportBackupDataJSON()">⬇️ تصدير نسخة احتياطية</button>
+                    <label for="importBackupFile">⬆️ استيراد نسخة
+                        <input type="file" id="importBackupFile" accept="application/json" style="display:none" onchange="importBackupDataJSON(event)">
+                    </label>
+                </div>
+            </div>
+
+            <!-- 2. بطاقة إضافة خطبة -->
+            <div class="card add-card">
+                <h2><span class="icon">📝</span> تسجيل خطبة جديدة</h2>
+                <div class="form-group">
+                    <input type="text" id="khutbahTitle" placeholder="موضوع الخطبة (مثال: فضل الصدقة)">
+                </div>
+                <div class="form-group date-inputs">
+                    <input type="number" id="khutbahDay" placeholder="اليوم" min="1" max="30">
+                    <select id="khutbahMonth">
+                        <option value="1">محرم</option>
+                        <option value="2">صفر</option>
+                        <option value="3">ربيع الأول</option>
+                        <option value="4">ربيع الآخر</option>
+                        <option value="5">جمادى الأولى</option>
+                        <option value="6">جمادى الآخرة</option>
+                        <option value="7">رجب</option>
+                        <option value="8">شعبان</option>
+                        <option value="9">رمضان</option>
+                        <option value="10">شوال</option>
+                        <option value="11">ذو القعدة</option>
+                        <option value="12">ذو الحجة</option>
+                    </select>
+                </div>
+                <button class="btn-add" onclick="addKhutbah()">➕ اعتماد وإضافة للأرشيف</button>
+            </div>
+
+            <!-- 3. بطاقة التقارير -->
+            <div class="card reports-card">
+                <h2><span class="icon">📊</span> مركز التقارير</h2>
+                <p style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 15px;">حدد الشهر لإصدار تقريره، أو قم بإصدار السجل السنوي الكامل.</p>
+                <div class="form-group">
+                    <select id="cardMonth">
+                        <option value="" disabled selected>اختر شهر التقرير...</option>
+                        <option value="1">محرم</option>
+                        <option value="2">صفر</option>
+                        <option value="3">ربيع الأول</option>
+                        <option value="4">ربيع الآخر</option>
+                        <option value="5">جمادى الأولى</option>
+                        <option value="6">جمادى الآخرة</option>
+                        <option value="7">رجب</option>
+                        <option value="8">شعبان</option>
+                        <option value="9">رمضان</option>
+                        <option value="10">شوال</option>
+                        <option value="11">ذو القعدة</option>
+                        <option value="12">ذو الحجة</option>
+                    </select>
+                </div>
+                <button class="btn-report-month" onclick="createMonthlyPDFReport()">📄 إصدار التقرير الشهري (PDF)</button>
+                <hr>
+                <button class="btn-report-year" onclick="createAnnualPDF()">📚 طباعة السجل السنوي الشامل</button>
+            </div>
+        </div>
+
+        <!-- 4. الأرشيف البصري -->
+        <div class="card archive-card">
+            <div class="archive-header">
+                <h2><span class="icon">🗂️</span> الأرشيف الشامل</h2>
+                <span class="stat-badge" id="archiveCount">إجمالي الخطب: 0</span>
+            </div>
+            <div id="khutbahList" class="khutbah-grid">
+                <!-- سيتم حقن الخطب هنا عبر الجافاسكربت -->
+            </div>
+        </div>
+    </div><!-- /appContainer -->
+
+    <!-- رسالة التنبيه العائمة -->
+    <div id="toast" class="toast">تم الإجراء بنجاح!</div>
+
+    <!-- استدعاء ملف الـ PDF المعالج الخاص بك -->
+    <script src="monthly.js"></script>
+
+    <!-- أكواد إدارة الواجهة (JS) -->
+    <script type="module">
+        import { registerUser, loginUser, logoutUser, watchAuth, pushToCloud, getAuthErrorMessage } from "./firebase-init.js";
+
+        const hijriMonthsNames = ["محرم", "صفر", "ربيع الأول", "ربيع الآخر", "جمادى الأولى", "جمادى الآخرة", "رجب", "شعبان", "رمضان", "شوال", "ذو القعدة", "ذو الحجة"];
+        let isAuthMode = "login"; // أو "register"
+
+        // دالة عرض التنبيهات الجمالية
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message;
+            toast.classList.add("show");
+            setTimeout(() => toast.classList.remove("show"), 3000);
+        }
+
+        function setSyncStatus(text) {
+            const el = document.getElementById("syncStatus");
+            if (el) el.innerText = text;
+        }
+
+        // مزامنة البيانات المحلية إلى السحابة (لا توقف الواجهة أثناء الانتظار)
+        async function syncToCloud() {
+            try {
+                setSyncStatus("⏳ جارِ الحفظ في السحابة...");
+                await pushToCloud();
+                setSyncStatus("✅ متزامن مع السحابة");
+            } catch (e) {
+                setSyncStatus("⚠️ تعذر الحفظ في السحابة (تحقق من الإنترنت)");
+            }
+        }
+
+        // ======================
+        // المصادقة (تسجيل الدخول / إنشاء حساب / خروج)
+        // ======================
+        function toggleAuthMode() {
+            isAuthMode = isAuthMode === "login" ? "register" : "login";
+            document.getElementById("authTitle").innerText = isAuthMode === "login" ? "تسجيل الدخول" : "إنشاء حساب جديد";
+            document.getElementById("authSubmitBtn").innerText = isAuthMode === "login" ? "تسجيل الدخول" : "إنشاء الحساب";
+            document.getElementById("authSwitchText").innerHTML = isAuthMode === "login"
+                ? 'ليس لديك حساب؟ <a onclick="toggleAuthMode()">إنشاء حساب جديد</a>'
+                : 'لديك حساب بالفعل؟ <a onclick="toggleAuthMode()">تسجيل الدخول</a>';
+            hideAuthError();
+        }
+
+        function showAuthError(msg) {
+            const el = document.getElementById("authError");
+            el.innerText = msg;
+            el.classList.add("show");
+        }
+
+        function hideAuthError() {
+            document.getElementById("authError").classList.remove("show");
+        }
+
+        async function handleAuthSubmit() {
+            const email = document.getElementById("authEmail").value.trim();
+            const password = document.getElementById("authPassword").value;
+            hideAuthError();
+
+            if (!email || !password) {
+                showAuthError("الرجاء إدخال البريد الإلكتروني وكلمة المرور.");
+                return;
+            }
+
+            const btn = document.getElementById("authSubmitBtn");
+            btn.disabled = true;
+            try {
+                if (isAuthMode === "login") {
+                    await loginUser(email, password);
+                } else {
+                    await registerUser(email, password);
+                }
+                // بعد النجاح، watchAuth ستتكفل بإظهار التطبيق
+            } catch (e) {
+                showAuthError(getAuthErrorMessage(e.code));
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function handleLogout() {
+            await logoutUser();
+            showToast("تم تسجيل الخروج");
+        }
+
+        // ربط بدء تشغيل المصادقة: إظهار التطبيق أو شاشة الدخول
+        watchAuth(
+            (user) => {
+                document.getElementById("authScreen").hidden = true;
+                document.getElementById("appContainer").hidden = false;
+                document.getElementById("userEmailLabel").innerText = user.email || "";
+            },
+            () => {
+                document.getElementById("authScreen").hidden = false;
+                document.getElementById("appContainer").hidden = true;
+                document.getElementById("authEmail").value = "";
+                document.getElementById("authPassword").value = "";
+            },
+            () => {
+                // وصل تحديث من السحابة (من جهاز آخر مثلاً) — أعد رسم الواجهة
+                loadSettings();
+                renderKhutbahs();
+                setSyncStatus("✅ متزامن مع السحابة");
+            }
+        );
+
+        // ======================
+        // النسخ الاحتياطي (تصدير / استيراد)
+        // ======================
+        function exportBackupDataJSON() {
+            try {
+                const settings = JSON.parse(localStorage.getItem("imamSettings") || "{}");
+                const khutbahs = JSON.parse(localStorage.getItem("khutbahs") || "[]");
+                const backupData = { settings, khutbahs };
+
+                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+                const link = document.createElement("a");
+                link.setAttribute("href", dataStr);
+                link.setAttribute("download", "khutbah_backup.json");
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                showToast("⬇️ تم تصدير النسخة الاحتياطية");
+            } catch (e) {
+                console.error(e);
+                showToast("⚠️ حدث خطأ أثناء تجهيز النسخة الاحتياطية");
+            }
+        }
+
+        function importBackupDataJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function (e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.settings) localStorage.setItem("imamSettings", JSON.stringify(data.settings));
+                    if (data.khutbahs) localStorage.setItem("khutbahs", JSON.stringify(data.khutbahs));
+
+                    loadSettings();
+                    renderKhutbahs();
+                    await syncToCloud();
+                    showToast("✅ تم الاستيراد ومزامنته مع السحابة");
+                } catch (err) {
+                    console.error(err);
+                    showToast("⚠️ ملف غير صالح أو تالف");
+                } finally {
+                    event.target.value = "";
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // 1. تحميل الإعدادات المحفوظة
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem("imamSettings")) || {};
+            if(settings.imamName) document.getElementById("imamName").value = settings.imamName;
+            if(settings.nationalId) document.getElementById("nationalId").value = settings.nationalId;
+            if(settings.phone) document.getElementById("phone").value = settings.phone;
+            if(settings.mosque) document.getElementById("mosque").value = settings.mosque;
+            if(settings.location) document.getElementById("location").value = settings.location;
+        }
+
+        // 2. حفظ الإعدادات
+        async function saveSettings() {
+            const settings = {
+                imamName: document.getElementById("imamName").value,
+                nationalId: document.getElementById("nationalId").value,
+                phone: document.getElementById("phone").value,
+                mosque: document.getElementById("mosque").value,
+                location: document.getElementById("location").value,
+            };
+            localStorage.setItem("imamSettings", JSON.stringify(settings));
+            showToast("✅ تم حفظ بيانات الخطيب بنجاح!");
+            await syncToCloud();
+        }
+
+        // 3. عرض الخطب في الأرشيف
+        function renderKhutbahs() {
+            const list = document.getElementById("khutbahList");
+            const khutab = JSON.parse(localStorage.getItem("khutbahs")) || [];
+            
+            // تحديث العداد
+            document.getElementById("archiveCount").innerText = `إجمالي الخطب: ${khutab.length}`;
+            list.innerHTML = "";
+
+            if (khutab.length === 0) {
+                list.innerHTML = `<p style="text-align:center; grid-column: 1 / -1; color:#9ca3af; padding:20px;">الأرشيف فارغ حالياً. أضف خطبة جديدة للبدء.</p>`;
+                return;
+            }
+
+            // الترتيب: الأحدث شهراً ثم الأحدث يوماً
+            khutab.sort((a, b) => {
+                if (b.month !== a.month) return b.month - a.month;
+                return b.day - a.day;
+            });
+
+            khutab.forEach((item, index) => {
+                const monthName = hijriMonthsNames[item.month - 1];
+                const div = document.createElement("div");
+                div.className = "khutbah-item";
+                div.innerHTML = `
+                    <div class="k-title">${item.title}</div>
+                    <div class="k-date">🗓️ ${item.day} ${monthName}</div>
+                    <button class="btn-delete" onclick="deleteKhutbah(${index})">🗑️ حذف</button>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        // 4. إضافة خطبة
+        async function addKhutbah() {
+            const title = document.getElementById("khutbahTitle").value;
+            const day = document.getElementById("khutbahDay").value;
+            const month = document.getElementById("khutbahMonth").value;
+
+            if (!title || !day || !month) {
+                showToast("⚠️ الرجاء تعبئة جميع بيانات الخطبة");
+                return;
+            }
+
+            let khutab = JSON.parse(localStorage.getItem("khutbahs")) || [];
+            khutab.push({ title, day: Number(day), month: Number(month) });
+            localStorage.setItem("khutbahs", JSON.stringify(khutab));
+
+            // تفريغ الحقول
+            document.getElementById("khutbahTitle").value = "";
+            document.getElementById("khutbahDay").value = "";
+
+            renderKhutbahs();
+            showToast("✅ تمت الإضافة للأرشيف!");
+            await syncToCloud();
+        }
+
+        // 5. حذف خطبة
+        async function deleteKhutbah(index) {
+            if(confirm("هل أنت متأكد من حذف هذه الخطبة؟")) {
+                let khutab = JSON.parse(localStorage.getItem("khutbahs")) || [];
+                khutab.splice(index, 1);
+                localStorage.setItem("khutbahs", JSON.stringify(khutab));
+                renderKhutbahs();
+                showToast("🗑️ تم الحذف بنجاح");
+                await syncToCloud();
+            }
+        }
+
+        // إتاحة الدوال للاستدعاء من سمات onclick في الصفحة
+        // (لازم لأن هذا الكود وحدة module ولا يضع الدوال في النطاق العام تلقائياً)
+        Object.assign(window, {
+            saveSettings, addKhutbah, deleteKhutbah,
+            handleAuthSubmit, toggleAuthMode, handleLogout,
+            exportBackupDataJSON, importBackupDataJSON
+        });
+
+        // التشغيل التلقائي عند فتح الصفحة
+        loadSettings();
+        renderKhutbahs();
+    </script>
+</body>
+</html>
